@@ -1,0 +1,46 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16
+    container_name: catalog-postgres
+    environment:
+      POSTGRES_DB: catalogdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  node-enrichment:
+    build:
+      context: ./services/node-enrichment
+    environment:
+      PORT: 4000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-your-key-here}
+      VALIDATOR_API_URL: http://java-validator:8080
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/catalogdb
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres
+      - java-validator
+
+  java-validator:
+    build:
+      context: ./services/java-validator
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: ./apps/web
+    environment:
+      NEXT_PUBLIC_NODE_API_URL: http://localhost:4000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - node-enrichment
+
+volumes:
+  postgres_data:
